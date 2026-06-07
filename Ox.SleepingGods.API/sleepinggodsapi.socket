@@ -1,0 +1,10 @@
+[Unit]
+Description=Socket activation for Sleeping Gods sync api
+PartOf=sleepinggodsapi.service
+
+[Socket]
+ListenStream=5000
+NoDelay=true
+
+[Install]
+WantedBy=sockets.target

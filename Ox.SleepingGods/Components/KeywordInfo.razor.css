@@ -1,0 +1,23 @@
+﻿.keywordInfo {
+	border-radius: 0px;
+	border: groove 2px navajowhite;
+	margin: 1px;
+	padding: 0.1em;
+}
+
+.quest {
+	float: right;
+	color: var(--teal);
+}
+
+.keywordInfo:hover {
+	background-color: antiquewhite;
+}
+
+.subtle {
+	color: navajowhite;
+}
+b {
+	font-weight: normal;
+	color: var(--teal);
+}

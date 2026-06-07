@@ -1,0 +1,36 @@
+﻿@inject Data.KeywordLocationRepository KeywordLocationRepository;
+@inject NavigationManager Navigator;
+
+<table>
+	@foreach (var kw in this.Locations)
+	{
+		<tr class="keyword">
+			<td>
+				@{
+					var link = Path.Combine(Navigator.BaseUri, "/Locations/" + kw.Location);
+				}
+				<NavLink href="@link" class="value">
+					@kw.Location
+				</NavLink>
+			</td>
+			<td>
+				<input type="button" value="-" @onclick="@((e) => Remove(@kw.Id!))" />
+			</td>
+		</tr>
+	}
+	<tr class="keyword">
+		<td>
+			<InputText @bind-Value="newLocationValue" size="2" class="keyword" />
+		</td>
+		<td>
+			<button @onclick="AddKeyword">+</button>
+		</td>
+	</tr>
+</table>
+
+@if (this.errorMessage != null)
+{
+	<div id="keywordLocationError">
+		@this.errorMessage
+	</div>
+}

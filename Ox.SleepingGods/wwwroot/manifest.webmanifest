@@ -1,0 +1,26 @@
+{
+  "name": "Sleeping Gods Companion",
+  "short_name": "Sleeping Gods Companion",
+  "description": "Unofficial Sleeping Gods companion app - for tracking your visits and quests.",
+  "id": "./",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FAEBD7",
+  "theme_color": "#00485C",
+  "categories": [
+    "games"
+  ],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ]
+}

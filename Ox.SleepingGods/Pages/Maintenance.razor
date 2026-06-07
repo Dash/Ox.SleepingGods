@@ -1,0 +1,102 @@
+﻿@page "/Maintenance";
+@inject IJSRuntime JS;
+@inject Data.EtlManager SynManager;
+@inject Models.Data.Management DbInfo;
+
+<PageTitle>Database maintenance - Sleeping Gods Companion</PageTitle>
+
+<script>
+	window.downloadFileFromStream = async (fileName, contentStreamReference) => {
+	  const arrayBuffer = await contentStreamReference.arrayBuffer();
+	  const blob = new Blob([arrayBuffer]);
+	  const url = URL.createObjectURL(blob);
+	  const anchorElement = document.createElement('a');
+	  anchorElement.href = url;
+	  anchorElement.download = fileName ?? '';
+	  anchorElement.click();
+	  anchorElement.remove();
+	  URL.revokeObjectURL(url);
+	}
+</script>
+
+<h3>Maintenance</h3>
+
+<p>If you would like to delete <i>everything</i> and reset, click the reset button. This cannot be undone.</p>
+<button @onclick="DeleteAll">Reset</button>
+
+<p>Export the current database as a backup, or for sharing with other people and devices.</p>
+<button @onclick="Export">Export</button>
+
+<p>Import a previously exported database.  This will first delete your existing database, and cannot be undone!</p>
+<InputFile OnChange="AddFile" accept=".json" />
+<button @onclick="Import">Import</button>
+
+
+<fieldset>
+	<legend>Sync server</legend>
+	<p>
+		Ensure you read the documentation and understand the impact of using a sync server before populating.</p>
+
+	<input type="url" class="fullwidth" placeholder="Sync endpoint URL" @bind="DbInfo.SyncUrl" @bind:after="this.UpdateSync" />
+
+	<p>Last sync @this.SynManager.LastSync<br />
+		Database id: @this.DbInfo.Uid<br />
+		Status: @Data.EtlManager.SyncStatus</p>
+</fieldset>
+
+@code {
+
+	protected async override Task OnInitializedAsync()
+	{
+		await base.OnInitializedAsync();
+		await this.DbInfo.LoadAsync();
+	}
+
+	private async Task DeleteAll()
+	{
+		var r = await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete everything (locations, keywords, notes etc)?");
+
+		if(r)
+		{
+			await SynManager.DeleteAllAsync();
+
+			await JS.InvokeVoidAsync("alert", "Complete");
+		}
+	}
+
+	private async Task Export()
+	{
+		using var ms = await SynManager.ExportAllAsync();
+
+		using var stream = new DotNetStreamReference(ms, false);
+
+		await JS.InvokeVoidAsync("downloadFileFromStream", $"sleepinggods_{DateTime.Now:yy-MM-dd}.json", stream);
+	}
+
+	private IBrowserFile? uploadFile;
+
+	private async Task AddFile(InputFileChangeEventArgs eventArgs)
+	{
+		this.uploadFile = eventArgs.File;
+	}
+
+	private async Task Import()
+	{
+		if(uploadFile != null)
+		{
+			using var stream = this.uploadFile.OpenReadStream(1048576);
+
+			await SynManager.ImportAsync(stream);
+			// Always wipe the sync URL on import as we don't know how stale the archive is
+			this.DbInfo.SyncUrl = null;
+			await this.DbInfo.SaveAsync();
+			await JS.InvokeVoidAsync("alert", "Complete");
+		}
+	}
+
+	private async Task UpdateSync()
+	{
+		await this.DbInfo.SaveAsync();
+		await this.SynManager.SyncAsync();
+	}
+}

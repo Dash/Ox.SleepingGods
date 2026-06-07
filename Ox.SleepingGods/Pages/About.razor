@@ -1,0 +1,99 @@
+﻿@page "/About"
+
+<PageTitle>About Sleeping Gods Companion</PageTitle>
+
+<h3>About</h3>
+
+<p>
+	The Sleeping Gods UNOFFICIAL Companion App.  I built this app to save my poor eyes scribbling notes
+	on the back of the campaign sheet and trying to work out what was useful information to store.  We
+	upgraded to a notepad but I felt this would be smarter.
+</p>
+
+<p>
+	This application is not sponsored or endorsed by the creators of Sleeping Gods or Red Raven Games.
+	Any imagry from the game remain the exclusive copyright of author.
+</p>
+
+<p>
+	I do not have the expansion, so I can't put the related assets into the app. If you have the expansion,
+	and can provide me with some details, I'm happy to add.
+</p>
+
+<p>
+	The app is released under MIT licence and the source can be found on <a href="https://github.com/Dash/Ox.SleepingGods" target="_blank">GitHub</a>.
+</p>
+
+<h3>Installation</h3>
+<p>This is a 'Progressive Web App', meaning you can install it as an app onto your computer or phone for offline use.
+	Look for the Add App icon in your browser to install.
+</p>
+
+<h3>Usage</h3>
+<p>Pick your location form the home page, and fill in details about the location, including any keywords required.</p>
+<p>You can click into a keyword to set more information about it, and see where else it is used or found.</p>
+<p>Keywords/Quests only show if you've found them, to retain the mystery.</p>
+
+<h3>Backing up and sharing</h3>
+<p>The data you enter is saved into your local browser's cache.  This <i>can</i> be evicted by your browser,
+	wiped if you clear it, and obviously not available on other devices.</p>
+<p>To backup your data, go to the Maintenance tab and run an export.  You can later import the resulting
+	JSON file in the future, or on another device.  An import will wipe your current database and replace it -
+	be sure to backup yours before importing other peoples!
+</p>
+
+<h3>Server Sync</h3>
+<p>You can opt to synchronise your local database with a remote server. You will need to run your own sync server
+	to specification to enable this (i.e. one doesn't come with this app).  Sample implementations are available in
+	the source code repositories.</p>
+
+<p>The following considerations apply when using a synchronisation server:
+	<ul>
+		<li>Syncs are only performed on updates and when the app starts up (or the browser is hard reloaded).</li>
+		<li>Enabling sync may incur a delay on app start while the sync is performed (network speed and db size dependent).</li>
+		<li>The local database identifier scopes the sync, if you reset your database you will lose access to your file.</li>
+		<li>For the same reason, if you want to use your database elsewhere, you must first import it manually into the other device.</li>
+		<li>Using more than one device at the same time is unsupported, there is no concurrency checking, and the latest version
+			always wins out.
+		</li>
+		<li>When importing a database, the sync url will always be blanked out to avoid accidenally overwriting a newer
+			copy from another device.
+		</li>
+		<li>If you're offline then make sure you load the app as soon as you get data to ensure your copy is pushed.</li>
+		<li>You must use a https endpoint when loading this app over https.</li>
+	</ul>
+</p>
+
+<p>The basic premise of the sync mechanism is to allow you to more automatically share your latest database with somebody
+	else after your game session.  If you have multiple devices try to update simultaneously, things will go wrong and
+	changes will be lost.
+</p>
+
+<h3>Links</h3>
+
+<p>
+	<ul>
+		<li><a href="https://www.redravengames.com/sleeping-gods/" rel="external" target="_blank">Sleeping Gods official page</a></li>
+		<li><a href="https://sleeping-gods.rulepop.com/" rel="external" target="_blank">Rules</a></li>
+		<li><a href="https://fortellergames.com/products/sleeping-gods-bundle" rel="external" target="_blank">Audio narration</a></li>
+		<li><a href="/Notices" rel="nofollow">Notices</a></li>
+	</ul>
+</p>
+
+<p>
+	Version: @BuildInfo
+</p>
+
+@code {
+	public string BuildInfo
+	{
+		get
+		{
+			var ass = System.Reflection.Assembly.GetExecutingAssembly();
+			var version = ass.GetName().Version;
+			string info = version != null ? new DateTime(2000, 1, 1).AddDays(version.Build).AddSeconds(version.Revision * 2).ToString("u") : version!.ToString();
+
+			return info + " - " + ass.ManifestModule.ModuleVersionId.ToString();
+		}
+	}
+}

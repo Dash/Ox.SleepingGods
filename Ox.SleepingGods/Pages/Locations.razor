@@ -1,0 +1,247 @@
+﻿@page "/Locations/{LocationId}"
+@using Models.Data;
+@using Ox.SleepingGods.Components
+@inject Data.LocationRepository locationRepo;
+@inject Data.KeywordLocationRepository keywordLocationsRepo;
+@inject Data.KeywordRepository keywordRepo;
+@inject NavigationManager Navigator;
+
+<PageTitle>Location @LocationId - Sleeping Gods Companion</PageTitle>
+
+<h3><span ><a class="back" href="javascript:history.back();">←</a></span>Location @LocationId | Page @Location?.Page</h3>
+
+<EditForm EditContext="this.formContext">
+	<DataAnnotationsValidator />
+	<ValidationSummary />
+	<InputRadioGroup @bind-Value="Location!.State">
+		<fieldset class="radiogroup">
+			<legend>Visitation</legend>
+			<div class="flex">
+				@foreach (var s in Enum.GetValues<LocationState>())
+				{
+					<label>
+						@s
+						<InputRadio Value="@s" />
+					</label>
+				}
+			</div>
+		</fieldset>
+	</InputRadioGroup>
+	<InputRadioGroup @bind-Value="Location!.Return">
+		<fieldset class="radiogroup">
+			<legend>Return</legend>
+			
+			<div class="flex">
+				@foreach (var s in Enum.GetValues<LocationReturn>())
+				{
+					<label>
+						@s
+						<InputRadio Value="@s" />
+					</label>
+				}
+			</div>
+		</fieldset>
+	</InputRadioGroup>
+	<InputRadioGroup @bind-Value="Location!.Danger">
+		<fieldset class="radiogroup">
+			<legend>Threat</legend>
+			<div class="flex">
+				<label for="danger_null">
+					Unknown
+					<InputRadio Value="Models.Data.DangerState.Unknown" id="danger_null" />
+				</label>
+				<label for="danger_danger">
+					Dangerous
+					<InputRadio Value="Models.Data.DangerState.Dangerous" id="danger_danger" />
+				</label>
+				<label for="danger_safe">
+					Safe
+					<InputRadio Value="Models.Data.DangerState.Safe" id="danger_safe" />
+				</label>
+			</div>
+		</fieldset>
+	</InputRadioGroup>
+	<fieldset>
+		<legend>Combat level</legend>
+		<InputNumber @bind-Value="Location.CombatLevel" max="22" min="3" typeof="numeric" size="3" />
+		<button @onclick="() => { Location.CombatLevel = null; }">🗑️</button>
+	</fieldset>
+
+	<fieldset class="imgtoggle skills">
+		<legend>Skills Required</legend>
+		<div>
+			@foreach(var skill in Enum.GetValues<Models.Data.Skill>())
+			{
+				<label>
+					<img src="@($"{Navigator.BaseUri}images/skill-{skill.ToString().ToLower()}.svg")" class="@skill.ToString().ToLower()" alt="@skill" title="@skill" />
+					<input type="checkbox" checked="@IsSkillRequired(skill)" @onchange="e => ToggleSkill(skill, (bool)e.Value!)" />
+				</label>
+				
+			}
+		</div>
+	</fieldset>
+	
+	<fieldset class="imgtoggle resources">
+		<legend>Rewards</legend>
+		<div>
+			@foreach (var res in Enum.GetValues<Models.Data.ResourceType>())
+			{
+				<label for="Res_@res" title="@res">
+					<img src="@($"{Navigator.BaseUri}images/resource-token-{res.ToString().ToLower()}.svg")" class="resource" alt="@res" />
+					<input type="checkbox" checked="@IsResourceFound(res)" @onchange="e => ToggleResource(res, (bool)e.Value!)" id="Res_@res" />
+				</label>
+			}
+		</div>
+	</fieldset>
+
+	<fieldset>
+		<legend>Notes</legend>
+		
+		<InputTextArea @bind-Value="Location.Note" />
+	</fieldset>
+
+	<fieldset>
+		<legend>Keywords needed</legend>
+		<KeywordLocationMap Action="KeywordAction.Used" LocationId="@this.LocationId" />
+	</fieldset>
+	
+	<fieldset>
+		<legend>Keywords found</legend>
+		<KeywordLocationMap Action="KeywordAction.Found" LocationId="@this.LocationId" />
+	</fieldset>
+</EditForm>
+
+<h4>Key</h4>
+<p class="key">
+<img src="/images/resource-token-coin.svg" /> Coin<br />
+<img src="/images/resource-token-grain.svg" /> Grain<br />
+<img src="/images/resource-token-meat.svg" /> Meat<br />
+<img src="/images/resource-token-vegetables.svg" /> Vegetables<br />
+<img src="/images/resource-token-materials.svg" /> Materials<br />
+<img src="/images/resource-token-artefact.svg" /> Artefact<br />
+<img src="/images/resource-token-totem.svg" /> Totem<br />
+<img src="/images/resource-token-xp.svg" /> Experience points<br />
+<img src="/images/resource-token-adventure.svg" /> Other adventure card<br />
+</p>
+@code {
+	[Parameter]
+	public string? LocationId { get; set; }
+
+	private Models.Data.LocationState[] VisitedStates = [
+		LocationState.Unvisited,
+		LocationState.Visited,
+		LocationState.Completed
+	];
+
+	private ValidationMessageStore? messageStore;
+
+	private EditContext? formContext = new(new object());
+
+	private Models.Data.Location Location { get; set; } = new(String.Empty, 0);
+	private List<Models.Data.KeywordLocation> UsedKeywords { get; set; } = [];
+	private List<Models.Data.KeywordLocation> FoundKeywords { get; set; } = [];
+	private FieldIdentifier _foundField = new FieldIdentifier(new object(), "newFoundKeyword");
+	private FieldIdentifier _usedField = new FieldIdentifier(new object(), "newUsedKeyword");
+
+	private string? newUsedKeyword;
+	private string? newFoundKeyword;
+	private bool newFoundKeywordQuest = false;
+
+	protected override async Task OnInitializedAsync()
+	{
+		await base.OnInitializedAsync();
+
+		if (this.LocationId != null)
+		{
+			this.Location = await this.locationRepo.GetById(this.LocationId) ?? new(String.Empty, 0);
+			this.FoundKeywords = await this.keywordLocationsRepo.GetByLocation(this.LocationId, Models.Data.KeywordAction.Found);
+			this.UsedKeywords = await this.keywordLocationsRepo.GetByLocation(this.LocationId, Models.Data.KeywordAction.Used);
+		}
+
+		this.formContext = new EditContext(this.Location);
+
+		this.messageStore = new ValidationMessageStore(this.formContext);
+
+		Console.WriteLine($"Cxt: {formContext.Model}, {this.Location.Id}, {this.Location.Note}");
+
+		this.formContext.OnFieldChanged += async (s, e) =>
+		{
+			if (e.FieldIdentifier.FieldName != nameof(Location.State) && this.Location.State == LocationState.Unvisited)
+				this.Location.State = LocationState.Visited;
+				
+			await locationRepo.Update(this.Location);
+		};
+	}
+
+	protected bool IsResourceFound(Models.Data.ResourceType resource) => this.Location.Resources.Contains(resource);
+	protected async Task ToggleResource(Models.Data.ResourceType resource, bool value)
+	{
+		if (IsResourceFound(resource) && !value)
+			this.Location.Resources.Remove(resource);
+
+		if (!IsResourceFound(resource) && value)
+			this.Location.Resources.Add(resource);
+
+		await locationRepo.Update(this.Location);
+	}
+
+	protected bool IsSkillRequired(Models.Data.Skill skill) => this.Location.Skills.Contains(skill);
+
+	protected async Task ToggleSkill(Models.Data.Skill skill, bool value)
+	{
+		if(IsSkillRequired(skill) && !value)
+			this.Location.Skills.Remove(skill);
+
+		if(!IsSkillRequired(skill) && value)
+			this.Location.Skills.Add(skill);
+
+		await locationRepo.Update(this.Location);
+	}
+
+	private async Task AddFoundKeyword()
+	{
+		this.messageStore!.Clear(this._foundField);
+
+		if (newFoundKeyword != null)
+		{
+			Models.Data.KeywordLocation keywordLocation = new(newFoundKeyword, this.Location.Id!, Models.Data.KeywordAction.Found);
+
+			try
+			{
+				await keywordRepo.Found(keywordLocation.Keyword, this.newFoundKeywordQuest);
+				await keywordLocationsRepo.Add(keywordLocation);
+				this.FoundKeywords.Add(keywordLocation);
+
+				this.newFoundKeyword = null;
+			}
+			catch(InvalidKeywordException exKeyword)
+			{
+				this.messageStore?.Add(this._foundField, exKeyword.Message);
+			}
+		}
+	}
+
+	private async Task AddUsedKeyword()
+	{
+		this.messageStore!.Clear(this._usedField);
+
+		if (newUsedKeyword != null)
+		{
+			Models.Data.KeywordLocation keywordLocation = new(newUsedKeyword, this.Location.Id!, Models.Data.KeywordAction.Found);
+
+			try
+			{
+				await keywordRepo.Found(keywordLocation.Keyword, null);
+				await keywordLocationsRepo.Add(keywordLocation);
+				this.UsedKeywords.Add(keywordLocation);
+
+				this.newUsedKeyword = null;
+			}
+			catch(InvalidCastException exKeyword)
+			{
+				this.messageStore?.Add(this._usedField, exKeyword.Message);
+			}
+		}
+	}
+
+}

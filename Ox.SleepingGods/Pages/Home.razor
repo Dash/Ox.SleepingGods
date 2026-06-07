@@ -1,0 +1,145 @@
+﻿@page "/"
+@inject Data.LocationRepository repo
+@inject Data.KeywordLocationRepository keywordLocationRepository
+@inject NavigationManager navigationManager
+@inject Data.HomeStateManager stateManager
+
+<PageTitle>Home</PageTitle>
+
+<h3>Locations</h3>
+
+<fieldset>
+	<legend>Filters</legend>
+	<select @bind="stateManager.PageFilter" @bind:after="ApplyFilters">
+		<option value="0">Page</option>
+		@foreach(var p in this.Pages)
+		{
+			<option>@p</option>
+		}
+	</select>
+
+	<select @bind="stateManager.ResourceFilter" @bind:after="ApplyFilters">
+		<option value="">Rewards</option>
+		@foreach(var r in Enum.GetValues<Models.Data.ResourceType>())
+		{
+			<option>@r</option>
+		}
+	</select>
+		
+</fieldset>
+
+<p class="locations">
+@foreach(var loc in this.Locations)
+{
+	<NavLink href="@($"{navigationManager.BaseUri}Locations/{loc.Id}")">
+		<span class="location">@loc.Id</span> <span class="visited"><i class="@(StateIcon(loc))"></i></span>
+	</NavLink>
+}
+</p>
+
+@if(this.KeywordsFound.Count > 0)
+{
+	<h4>Collectible Keywords on this page</h4>
+	<table>
+	@foreach(var kw in this.KeywordsFound.Distinct())
+	{
+		<tr><td>@kw</td></tr>	
+	}
+	</table>
+}
+
+<h4>Key</h4>
+<p>
+	<i class="icon-ic_fluent_checkbox_arrow_right_24_regular"></i> Completed: return<br />
+	<i class="icon-ic_fluent_checkbox_warning_24_regular"></i> Completed: avoid<br />
+	<i class="icon-ic_fluent_warning_12_regular"></i> Incomplete: avoid<br />
+	<i class="icon-ic_fluent_image_arrow_back_20_regular"></i> Incomplete: return<br />
+	<i class="icon-ic_fluent_checkbox_checked_24_regular"></i> Completed<br />
+	<i class="icon-ic_fluent_checkbox_unchecked_24_regular"></i> Incomplete<br />
+	<i class="icon-ic_fluent_new_24_regular"></i> Unvisited
+</p>
+
+@code
+{
+	private IEnumerable<Models.Data.Location> Locations = [];
+	private int[] Pages { get; set; } = Enumerable.Range(2,29).ToArray();
+	private List<string> KeywordsFound { get; set; } = [];
+
+	protected override async Task OnInitializedAsync()
+	{
+		await base.OnInitializedAsync();
+		this.Locations = await repo.GetAll();
+		await this.ApplyFilters();
+	}
+
+	private string? StateIcon(Models.Data.Location location)
+	{
+		string? cls = null;
+		if(location.State == Models.Data.LocationState.Completed
+			&& location.Return == Models.Data.LocationReturn.Return)
+		{
+			cls = "icon-ic_fluent_checkbox_arrow_right_24_regular";
+		}
+		else if(location.State == Models.Data.LocationState.Completed
+			&& location.Return == Models.Data.LocationReturn.Avoid)
+		{
+			cls = "icon-ic_fluent_checkbox_warning_24_regular";
+		}
+		else if(location.Return == Models.Data.LocationReturn.Avoid)
+		{
+			cls = "icon-ic_fluent_warning_12_regular";
+		}
+		else if(location.Return == Models.Data.LocationReturn.Return)
+		{
+			cls = "icon-ic_fluent_image_arrow_back_20_regular";
+		}
+		else if(location.Return == Models.Data.LocationReturn.Undecided)
+		{
+			cls = location.State switch
+			{
+				Models.Data.LocationState.Completed => "icon-ic_fluent_checkbox_checked_24_regular",
+				Models.Data.LocationState.Visited => "icon-ic_fluent_checkbox_unchecked_24_regular",
+				_ => "icon-ic_fluent_new_24_regular"
+			};
+		}
+
+		if (location.Danger == Models.Data.DangerState.Dangerous)
+			cls += " danger";
+		else if (location.Danger == Models.Data.DangerState.Safe)
+			cls += " safe";
+
+		return cls;
+	}
+
+
+	private async Task ApplyFilters()
+	{
+		this.Locations = (await repo.GetAll()).AsEnumerable();
+		if (stateManager.PageFilter > 0)
+			Locations = Locations.Where(l => l.Page == stateManager.PageFilter);
+
+		if (stateManager.ResourceFilter.HasValue)
+			Locations = Locations.Where(l => l.Resources.Contains(stateManager.ResourceFilter ?? Models.Data.ResourceType.Artefact));
+
+		if(stateManager.ResourceFilter.HasValue || stateManager.PageFilter > 0)
+		{
+			foreach(var location in this.Locations)
+			{
+				var kws = await keywordLocationRepository.GetByLocation(location.Id!, Models.Data.KeywordAction.Found);
+				if(kws != null)
+					this.KeywordsFound.AddRange(kws.Select(k => k.Keyword));
+			}
+		}
+		else
+		{
+			this.KeywordsFound.Clear();
+		}
+	}
+
+
+	private EventCallback GoToLocation(string location)
+	{
+		navigationManager.NavigateTo("Locations/" + location, false);
+		return EventCallback.Empty;
+	}
+}

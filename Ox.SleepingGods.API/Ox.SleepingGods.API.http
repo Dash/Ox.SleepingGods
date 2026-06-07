@@ -1,0 +1,24 @@
+@Ox.SleepingGods.API_HostAddress = http://localhost:5091
+
+PUT {{Ox.SleepingGods.API_HostAddress}}/foo
+Content-Type: application/json
+
+{
+	"stuff": "thing"
+}
+
+###
+
+GET {{Ox.SleepingGods.API_HostAddress}}/foo
+Accept: application/json
+
+###
+
+GET {{Ox.SleepingGods.API_HostAddress}}/foo
+Accept: application/json
+If-None-Match: "1779570819"
+
+###
+GET {{Ox.SleepingGods.API_HostAddress}}/foo
+Accept: application/json
+If-Modified-Since: Sat, 23 May 2026 21:13:39 GMT

@@ -1,0 +1,79 @@
+﻿@using Models.Data
+@inject Data.KeywordLocationRepository keywordLocationRepository
+@inject NavigationManager navigationManager
+
+@if (this.Keyword != null)
+{
+	<div class="keywordInfo" @onclick="GotoKeyword">
+		@if (this.Keyword.KeywordType == KeywordType.Quest)
+		{
+			<div class="quest">
+				<i class="icon-ic_fluent_map_24_regular"></i>
+			</div>
+		}
+		@{
+			var url = $"/Keywords/{this.Keyword.Id}"; 
+		}
+		<div><NavLink href="@url">
+			@this.Keyword.Id
+		</NavLink></div>
+		<div class="resourcelist">
+			@foreach(var rwd in this.Keyword.Rewards)
+			{
+				<img class="resource" src="@($"/images/resource-token-{rwd.Type.ToString().ToLower()}.svg")" alt="@rwd.Type" title="@rwd.Type" />
+			}
+		</div>
+		<span class="keywordLocations">
+			<b>Found at: </b>
+			@foreach(var kwl in this.foundLocations)
+			{
+				@kwl.Location
+				<text>&nbsp;</text>
+			}
+		</span>
+		<span class="subtle">|</span>
+		<span class="keywordLocations">
+			<b>Needed at:</b>
+			@foreach (var kwl in this.usedLocations)
+			{
+				@kwl.Location
+				<text>&nbsp;</text>
+			}
+		</span>
+	</div>
+}
+
+@code {
+	[Parameter]
+	public Models.Data.Keyword? Keyword { get; set; }
+
+	private List<KeywordLocation> foundLocations = [];
+	private List<KeywordLocation> usedLocations = [];
+
+	protected override async Task OnInitializedAsync()
+	{
+		await base.OnInitializedAsync();
+		if(this.Keyword?.Id != null)
+		{
+			_ = Task.Run(this.LoadFoundAsync);
+			_ = Task.Run(this.LoadUsedAsync);
+		}
+	}
+
+	private async Task LoadFoundAsync()
+	{
+		this.foundLocations = await this.keywordLocationRepository.GetByKeyword(this.Keyword!.Id!, KeywordAction.Found);
+		this.StateHasChanged();
+	}
+
+	private async Task LoadUsedAsync()
+	{
+		this.usedLocations = await this.keywordLocationRepository.GetByKeyword(this.Keyword!.Id!, KeywordAction.Used);
+		this.StateHasChanged();
+	}
+	private Task GotoKeyword(MouseEventArgs args)
+	{
+		this.navigationManager.NavigateTo("/Keywords/" + this.Keyword!.Id);
+		return Task.CompletedTask;
+	}
+}

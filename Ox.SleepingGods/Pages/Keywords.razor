@@ -1,0 +1,69 @@
+﻿@inject Data.KeywordRepository keywordRepo;
+@inject Data.KeywordLocationRepository keywordLocationRepository;
+@inject NavigationManager Navigator;
+@page "/Keywords"
+@using Ox.SleepingGods.Components
+
+<PageTitle>Quests</PageTitle>
+
+<h3>Keywords</h3>
+
+<div id="NewQuest">
+	<h4>Add Quest</h4>
+	<EditForm Model="@newKeyword" OnValidSubmit="@Submit" FormName="newquest" id="fnar">
+		<DataAnnotationsValidator />
+		<ValidationSummary />
+		<InputText @bind-Value="newKeyword!.Id" class="keyword" placeholder="New Keyword" />
+		<button type="submit">+</button>
+	</EditForm>
+</div>
+
+<fieldset>
+	<legend>Filter</legend>
+	<input type="text" @oninput="this.FilterAsync" class="keyword" placeholder="Search" />
+</fieldset>
+
+@foreach(var r in this.keywords)
+{
+	<KeywordInfo Keyword="r" />
+}
+
+@code {
+
+	[SupplyParameterFromForm]
+	private Models.Data.Keyword? newKeyword { get; set; } = new();
+
+	private Dictionary<string,IList<Models.Data.KeywordLocation>> FoundLocations = [];
+
+	private List<Models.Data.Keyword> keywords = new();
+
+	protected override async Task OnInitializedAsync()
+	{
+		await base.OnInitializedAsync();
+
+		this.keywords = await this.keywordRepo.GetAll();
+		foreach(var kw in this.keywords)
+		{
+			this.FoundLocations[kw.Id!] = await this.keywordLocationRepository.GetByKeyword(kw.Id!, Models.Data.KeywordAction.Found);
+		}
+	}
+
+	protected async Task FilterAsync(ChangeEventArgs eventArgs)
+	{
+		var filter = eventArgs.Value as String;
+		if(String.IsNullOrWhiteSpace(filter))
+			this.keywords = await this.keywordRepo.GetAll();
+		else
+			this.keywords = (await this.keywordRepo.GetAll()).Where(k => k.Id!.Contains(filter.ToUpper())).ToList();
+	}
+
+	public async Task Submit()
+	{
+		if (this.newKeyword != null)
+		{
+			await this.keywordRepo.Add(this.newKeyword);
+			this.keywords.Add(this.newKeyword);
+		}
+		this.newKeyword = new();
+	}
+}

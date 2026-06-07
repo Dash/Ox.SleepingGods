@@ -1,0 +1,84 @@
+﻿@inherits LayoutComponentBase
+@inject Data.MessageManager Messages
+@inject BrowserAPI.INetworkInformation NetworkInformation
+<div class="page">
+	<NavMenu />
+
+	<div id="messages">
+		@foreach(var msg in this.Messages.Errors)
+		{
+			<div>
+				@msg
+				<button @onclick="() => this.Messages.Errors.Remove(msg)">X</button>
+			</div>
+		}
+	</div>
+
+	<main>
+		<article class="content px-4">
+			<ErrorBoundary @ref="errorBoundary">
+				<ChildContent>
+					@Body
+				</ChildContent>
+				<ErrorContent>
+					<p>
+						@context.Message
+					</p>
+					
+					<button class="dismiss" @onclick="_ => errorBoundary?.Recover()">
+						Dismiss
+					</button>
+				</ErrorContent>
+			</ErrorBoundary>
+		</article>
+	</main>
+</div>
+
+<div id="statusIcons">
+@if (this.SyncState && this.Online)
+{
+	<i class="icon-ic_fluent_arrow_sync_24_regular syncIcon" title="Synchronising, do not exit."></i>
+}
+@if(!this.Online)
+{
+	<i class="icon-ic_fluent_plug_disconnected_28_regular" title="Device offline, unable to sync."></i>
+}
+</div>
+
+
+@code {
+	private ErrorBoundary? errorBoundary;
+
+	private bool SyncState = false;
+
+	private bool Online 
+	{
+		get; 
+		set
+		{
+			field = value;
+			InvokeAsync(StateHasChanged);
+		}
+	} = true;
+
+	protected override async Task OnInitializedAsync()
+	{
+		await base.OnInitializedAsync();
+		Data.SyncMonitor.OnProcessingStart += async () =>
+		{
+			this.SyncState = true;
+			await InvokeAsync(StateHasChanged);
+		};
+		Data.SyncMonitor.OnProcessingEnd += async () =>
+		{
+			this.SyncState = false;
+			await InvokeAsync(StateHasChanged);
+		};
+		Messages.OnMesssage += async (msg) =>
+		{
+			await InvokeAsync(StateHasChanged);
+		};
+		NetworkInformation.OnOnline += () => this.Online = true;
+		NetworkInformation.OnOffline += () => this.Online = false;
+	}
+}

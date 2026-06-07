@@ -1,0 +1,41 @@
+.locations .visited .danger {
+	color: darkred;
+}
+.locations .visited .safe {
+	color: darkgreen;
+}
+
+.locations a .location {
+	display: inline-block;
+	min-width: 2em;
+	text-align: left;
+}
+.locations a .visited {
+	display: inline-block;
+	min-width: 1em;
+}
+
+	.locations {
+		display: flex;
+		flex-wrap: wrap;
+	}
+
+.locations ::deep a {
+	border: 2px solid var(--teal);
+	color: var(--teal);
+	background-color: antiquewhite;
+	display: block;
+	width: 4em;
+	height: 3em;
+	margin-right: 0.5em;
+	margin-bottom: 0.5em;
+	text-align: center;
+	line-height: 3em;
+	text-decoration: none;
+	font-weight: bold;
+}
+
+.locations ::deep a:hover {
+	background-color: var(--teal);
+	color: antiquewhite;
+}

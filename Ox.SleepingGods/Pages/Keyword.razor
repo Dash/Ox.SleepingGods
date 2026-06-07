@@ -1,0 +1,89 @@
+﻿@inject Data.KeywordRepository keywordRepo;
+@inject Data.KeywordLocationRepository keywordLocationRepository;
+@inject NavigationManager Navigator;
+@using Models.Data;
+@using Ox.SleepingGods.Components
+@page "/Keywords/{KeywordId}"
+
+<PageTitle>@Model?.Id - Sleeping Gods Companion</PageTitle>
+
+<h3><a class="back" href="javascript:history.back();">←</a> @Model?.Id</h3>
+
+<EditForm EditContext="this.formContext">
+
+	<InputRadioGroup @bind-Value="Model!.KeywordType">
+		<fieldset class="radiogroup">
+			<legend>Type</legend>
+			<div class="flex">
+				<label><InputRadio Value="KeywordType.Unknown"></InputRadio>Unknown</label>
+				<label><InputRadio Value="KeywordType.Standard"></InputRadio>Standard</label>
+				<label><InputRadio Value="KeywordType.Quest"></InputRadio>Quest</label>
+			</div>
+		</fieldset>
+	</InputRadioGroup>
+
+	<fieldset class="imgtoggle resources">
+		<legend>Resources</legend>
+		<div>
+			@foreach (var r in Enum.GetValues<ResourceType>())
+			{
+				<label title="@r">
+					<img src="@($"{Navigator.BaseUri}images/resource-token-{r.ToString().ToLower()}.svg")" class="resource" alt="@r" />
+					<input type="checkbox" checked="@Model.Rewards.Any(x => x.Type == r)" @onchange="e => this.ToggleResource(r)" />
+				</label>
+			}
+		</div>
+	</fieldset>
+
+	<fieldset>
+		<legend>Notes</legend>
+		<InputTextArea @bind-Value="Model.Note" />
+	</fieldset>
+
+	<fieldset>
+		<legend>Locations used</legend>
+		<LocationKeywordMap Action="KeywordAction.Used" KeywordId="@this.KeywordId" />
+	</fieldset>
+
+	<fieldset>
+		<legend>Locations found</legend>
+		<LocationKeywordMap KeywordId="@this.KeywordId" Action="KeywordAction.Found" />
+	</fieldset>
+
+</EditForm>
+
+@code {
+	[Parameter]
+	public string? KeywordId { get; set; }
+
+	private Models.Data.Keyword? Model { get; set; } = new();
+	private EditContext? formContext = new(new());
+
+	private List<Models.Data.KeywordLocation> UsedKeywords { get; set; } = [];
+	private List<Models.Data.KeywordLocation> FoundKeywords { get; set; } = [];
+
+	protected async override Task OnInitializedAsync()
+	{
+		await base.OnInitializedAsync();
+
+		if(this.KeywordId != null)
+			this.Model = await keywordRepo.GetById(this.KeywordId);
+
+		if (this.Model != null)
+		{
+			this.formContext = new EditContext(this.Model);
+
+			this.formContext.OnFieldChanged += async (s, e) =>
+			{
+				await keywordRepo.Update(this.Model);
+			};
+		}
+
+	}
+
+	private async Task ToggleResource(ResourceType resourceType)
+	{
+		this.Model!.ToggleResource(resourceType);
+		await keywordRepo.Update(this.Model);
+	}
+}

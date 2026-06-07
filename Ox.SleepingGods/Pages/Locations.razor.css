@@ -1,0 +1,9 @@
+﻿.key img {
+	width: 24px;
+	background: radial-gradient(circle at top, #92564A, #210A0F);
+	border-radius: 20%;
+	vertical-align: central;
+}
+fieldset ::deep input[size="3"] {
+	width: 3em;
+}
