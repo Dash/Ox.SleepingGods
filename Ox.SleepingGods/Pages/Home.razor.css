@@ -8,27 +8,26 @@
 .locations a .location {
 	display: inline-block;
 	min-width: 2em;
-	text-align: left;
+	text-align: center;
 }
 .locations a .visited {
 	display: inline-block;
-	min-width: 1em;
+	min-width: 1.2em;
 }
 
-	.locations {
-		display: flex;
-		flex-wrap: wrap;
-	}
+.locations {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5em;
+}
 
 .locations ::deep a {
 	border: 2px solid var(--teal);
 	color: var(--teal);
 	background-color: antiquewhite;
-	display: block;
-	width: 4em;
+	flex-grow: 1;
+	min-width: 3.7em;
 	height: 3em;
-	margin-right: 0.5em;
-	margin-bottom: 0.5em;
 	text-align: center;
 	line-height: 3em;
 	text-decoration: none;

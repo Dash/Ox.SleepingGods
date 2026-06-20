@@ -44,12 +44,46 @@ namespace Ox.SleepingGods.Data
 			private set;
 		}
 
+		private static readonly string[] _indexValues = [
+			"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+			"N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"
+		];
+
+		private string IndexName => $"{this.storeName}_{nameof(Keyword.Index)}";
+
+		public async IAsyncEnumerable<Keyword> GetAllAsync()
+		{
+			foreach (string c in _indexValues)
+			{
+				var batch = await this.manager.GetAllRecordsByIndex<string, Keyword>(new StoreIndexQuery<string>()
+				{
+					AllMatching = true,
+					IndexName = this.IndexName,
+					QueryValue = c,
+					Storename = this.storeName
+				});
+
+				if (batch != null)
+				{
+					foreach (var keyword in batch)
+					{
+						yield return keyword;
+					}
+				}
+			}
+
+
+		}
+
 		/// <summary>
 		/// Adds a valid keyword to the user database
 		/// </summary>
 		/// <inheritdoc/>
 		/// <exception cref="InvalidKeywordException">Keyword isn't in the game</exception>
-		public override Task Add(Keyword item, bool import = false) => !AllKeywords.Contains(item.Id) ? throw new InvalidKeywordException(item.Id) : base.Add(item, import);
+		public override Task Add(Keyword item, bool import = false)
+		{
+			return !AllKeywords.Contains(item.Id) ? throw new InvalidKeywordException(item.Id) : base.Add(item, import);
+		}
 
 		/// <summary>
 		/// Marks a keyword as discovered

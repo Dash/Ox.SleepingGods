@@ -43,8 +43,12 @@ namespace Ox.SleepingGods
 			builder.Services.AddSingleton<HomeStateManager>();
 			builder.Services.AddSingleton<SyncChannel>();
 			builder.Services.AddScoped<SyncMonitor>();
+			builder.Services.AddSingleton<KeywordStateManager>();
 
 			var app = builder.Build();
+
+			// Prior to launching the site, deal with any database upgrades
+			await IndexedDbSchema.UpgradeSchema(app.Services);
 
 			// Spawn the sync monitor
 			await using var syncScope = app.Services.CreateAsyncScope();

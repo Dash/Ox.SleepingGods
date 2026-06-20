@@ -5,22 +5,37 @@
 @if (this.Keyword != null)
 {
 	<div class="keywordInfo" @onclick="GotoKeyword">
-		@if (this.Keyword.KeywordType == KeywordType.Quest)
-		{
-			<div class="quest">
-				<i class="icon-ic_fluent_map_24_regular"></i>
-			</div>
-		}
+		<div class="quest">
+			@if(this.Keyword.KeywordType == KeywordType.Unknown)
+			{
+				<i class="icon-ic_fluent_question_20_regular" title="Unknown type"></i>
+			}
+			@if (this.Keyword.Favourite)
+			{
+				<i class="icon-ic_fluent_star_emphasis_20_regular teal" title="Favourite"></i>
+			}
+			@if (this.Keyword.KeywordType == KeywordType.Quest)
+			{
+				if(this.Keyword.Completed)
+				{
+					<i class="icon-ic_fluent_checkmark_square_20_regular" title="Completed"></i>
+				}
+				<i class="icon-ic_fluent_map_24_regular" title="Quest"></i>
+			}
+		</div>
 		@{
 			var url = $"/Keywords/{this.Keyword.Id}"; 
 		}
-		<div><NavLink href="@url">
-			@this.Keyword.Id
-		</NavLink></div>
+		<div>
+			<NavLink href="@url">
+				@this.Keyword.Id
+			</NavLink>
+		</div>
 		<div class="resourcelist">
 			@foreach(var rwd in this.Keyword.Rewards)
 			{
 				<img class="resource" src="@($"/images/resource-token-{rwd.Type.ToString().ToLower()}.svg")" alt="@rwd.Type" title="@rwd.Type" />
+				<text>&nbsp;</text>
 			}
 		</div>
 		<span class="keywordLocations">

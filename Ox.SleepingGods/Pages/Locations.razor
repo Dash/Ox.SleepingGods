@@ -1,4 +1,5 @@
 ﻿@page "/Locations/{LocationId}"
+@using Microsoft.AspNetCore.Components.Sections
 @using Models.Data;
 @using Ox.SleepingGods.Components
 @inject Data.LocationRepository locationRepo;
@@ -7,6 +8,7 @@
 @inject NavigationManager Navigator;
 
 <PageTitle>Location @LocationId - Sleeping Gods Companion</PageTitle>
+<SectionContent SectionName="page-title">Location @LocationId</SectionContent>
 
 <h3><span ><a class="back" href="javascript:history.back();">←</a></span>Location @LocationId | Page @Location?.Page</h3>
 

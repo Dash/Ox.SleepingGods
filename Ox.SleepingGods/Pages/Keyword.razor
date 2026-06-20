@@ -1,17 +1,29 @@
 ﻿@inject Data.KeywordRepository keywordRepo;
 @inject Data.KeywordLocationRepository keywordLocationRepository;
 @inject NavigationManager Navigator;
+@using Microsoft.AspNetCore.Components.Sections
 @using Models.Data;
 @using Ox.SleepingGods.Components
 @page "/Keywords/{KeywordId}"
 
 <PageTitle>@Model?.Id - Sleeping Gods Companion</PageTitle>
 
-<h3><a class="back" href="javascript:history.back();">←</a> @Model?.Id</h3>
+<SectionContent SectionName="page-title">Keyword @Model.Id</SectionContent>
+
 
 <EditForm EditContext="this.formContext">
 
-	<InputRadioGroup @bind-Value="Model!.KeywordType">
+	<h3>
+		<a class="back" href="javascript:history.back();">←</a>
+		@Model.Id 
+		<span class="fav">
+			<label for="fav">
+				<InputCheckbox @bind-Value="this.Model.Favourite" id="fav"></InputCheckbox>
+			</label>
+		</span>
+	</h3>
+
+	<InputRadioGroup @bind-Value="Model.KeywordType">
 		<fieldset class="radiogroup">
 			<legend>Type</legend>
 			<div class="flex">
@@ -22,18 +34,50 @@
 		</fieldset>
 	</InputRadioGroup>
 
-	<fieldset class="imgtoggle resources">
-		<legend>Resources</legend>
-		<div>
-			@foreach (var r in Enum.GetValues<ResourceType>())
-			{
-				<label title="@r">
-					<img src="@($"{Navigator.BaseUri}images/resource-token-{r.ToString().ToLower()}.svg")" class="resource" alt="@r" />
-					<input type="checkbox" checked="@Model.Rewards.Any(x => x.Type == r)" @onchange="e => this.ToggleResource(r)" />
-				</label>
-			}
-		</div>
-	</fieldset>
+	@if (this.Model.KeywordType == KeywordType.Quest)
+	{
+		<InputRadioGroup @bind-Value="Model.Completed">
+			<fieldset class="radiogroup">
+				<legend>Visitation</legend>
+				<div class="flex">
+					<label>Incomplete <InputRadio Value="false" /></label>
+					<label>Complete <InputRadio Value="true" /></label>
+				</div>
+			</fieldset>
+		</InputRadioGroup>
+		<fieldset>
+			<legend>Combat level</legend>
+			<InputNumber @bind-Value="Model.CombatLevel" max="22" min="3" typeof="numeric" size="3" />
+			<button @onclick="() => { Model.CombatLevel = null; }">🗑️</button>
+		</fieldset>
+
+		<fieldset class="imgtoggle skills">
+			<legend>Skills Required</legend>
+			<div>
+				@foreach (var skill in Enum.GetValues<Models.Data.Skill>())
+				{
+					<label>
+						<img src="@($"{Navigator.BaseUri}images/skill-{skill.ToString().ToLower()}.svg")" class="@skill.ToString().ToLower()" alt="@skill" title="@skill" />
+						<input type="checkbox" checked="@IsSkillRequired(skill)" @onchange="e => ToggleSkill(skill, (bool)e.Value!)" />
+					</label>
+
+				}
+			</div>
+		</fieldset>
+
+		<fieldset class="imgtoggle resources">
+			<legend>Resources</legend>
+			<div>
+				@foreach (var r in Enum.GetValues<ResourceType>())
+				{
+					<label title="@r">
+						<img src="@($"{Navigator.BaseUri}images/resource-token-{r.ToString().ToLower()}.svg")" class="resource" alt="@r" />
+						<input type="checkbox" checked="@Model.Rewards.Any(x => x.Type == r)" @onchange="e => this.ToggleResource(r)" />
+					</label>
+				}
+			</div>
+		</fieldset>
+	}
 
 	<fieldset>
 		<legend>Notes</legend>
@@ -56,7 +100,7 @@
 	[Parameter]
 	public string? KeywordId { get; set; }
 
-	private Models.Data.Keyword? Model { get; set; } = new();
+	private Models.Data.Keyword Model { get; set; } = new();
 	private EditContext? formContext = new(new());
 
 	private List<Models.Data.KeywordLocation> UsedKeywords { get; set; } = [];
@@ -66,11 +110,14 @@
 	{
 		await base.OnInitializedAsync();
 
-		if(this.KeywordId != null)
-			this.Model = await keywordRepo.GetById(this.KeywordId);
+		Models.Data.Keyword? keyword = null;
 
-		if (this.Model != null)
+		if(this.KeywordId != null)
+			keyword = await keywordRepo.GetById(this.KeywordId);
+
+		if (keyword != null)
 		{
+			this.Model = keyword;
 			this.formContext = new EditContext(this.Model);
 
 			this.formContext.OnFieldChanged += async (s, e) =>
@@ -83,7 +130,20 @@
 
 	private async Task ToggleResource(ResourceType resourceType)
 	{
-		this.Model!.ToggleResource(resourceType);
+		this.Model.ToggleResource(resourceType);
+		await keywordRepo.Update(this.Model);
+	}
+
+	protected bool IsSkillRequired(Models.Data.Skill skill) => this.Model.Skills.Contains(skill);
+
+	protected async Task ToggleSkill(Models.Data.Skill skill, bool value)
+	{
+		if (IsSkillRequired(skill) && !value)
+			this.Model.Skills.Remove(skill);
+
+		if (!IsSkillRequired(skill) && value)
+			this.Model.Skills.Add(skill);
+
 		await keywordRepo.Update(this.Model);
 	}
 }

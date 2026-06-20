@@ -1,12 +1,13 @@
 ﻿@page "/"
+@using Microsoft.AspNetCore.Components.Sections
+@using Ox.SleepingGods.Components
 @inject Data.LocationRepository repo
 @inject Data.KeywordLocationRepository keywordLocationRepository
 @inject NavigationManager navigationManager
 @inject Data.HomeStateManager stateManager
 
-<PageTitle>Home</PageTitle>
-
-<h3>Locations</h3>
+<PageTitle>Locations - Sleeping Gods Companion</PageTitle>
+<SectionContent SectionName="page-title">Locations</SectionContent>
 
 <fieldset>
 	<legend>Filters</legend>
@@ -43,7 +44,7 @@
 	<table>
 	@foreach(var kw in this.KeywordsFound.Distinct())
 	{
-		<tr><td>@kw</td></tr>	
+		<tr><td><a href="/Keywords/@kw">@kw</a></td></tr>	
 	}
 	</table>
 }

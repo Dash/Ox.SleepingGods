@@ -34,12 +34,16 @@ namespace Ox.SleepingGods.Data
 			private set => _lastSync = value;
 		}
 
+		public bool SyncEnabled => !String.IsNullOrWhiteSpace(this.DBInfo.SyncUrl);
+
 		private readonly ILogger<EtlManager> log;
 		private readonly HttpClient http;
 		private readonly MessageManager messages;
 		private readonly INetworkInformation netInfo;
 		private readonly IWindow appWindow;
 		private readonly SemaphoreSlim syncLock = new(1, 1);
+		private bool syncSuccessful = false;
+		private int syncCount = 0;
 
 		/// <param name="locations">Location repository</param>
 		/// <param name="keywords">Keyword repository</param>
@@ -96,13 +100,17 @@ namespace Ox.SleepingGods.Data
 		/// <returns></returns>
 		public async Task<Stream> ExportAllAsync()
 		{
+			var locationTask = this.Locations.ExportAsync();
+			var keywordTask = this.Keywords.ExportAsync();
+			var mapTask = this.KeywordMap.ExportAsync();
+
 			MemoryStream ms = new();
 			DatabaseExport data = new()
 			{
 				Version = this.DBInfo.DbVersion,
-				Locations = await this.Locations.ExportAsync(),
-				Keywords = await this.Keywords.ExportAsync(),
-				KeywordLocations = await this.KeywordMap.ExportAsync(),
+				Locations = await locationTask,
+				Keywords = await keywordTask,
+				KeywordLocations = await mapTask,
 				Management = this.DBInfo
 			};
 
@@ -143,15 +151,18 @@ namespace Ox.SleepingGods.Data
 					this.DBInfo.Etag = data.Management.Etag;
 				}
 
-				await this.KeywordMap.EraseAsync();
+				List<Task> imports = new List<Task>(3);
+
 				if (data.Keywords != null)
-					await this.Keywords.ImportAsync(data.Keywords);
+					imports.Add(this.Keywords.ImportAsync(data.Keywords));
 
 				if (data.Locations != null)
-					await this.Locations.ImportAsync(data.Locations);
+					imports.Add(this.Locations.ImportAsync(data.Locations));
 
 				if (data.KeywordLocations != null)
-					await this.KeywordMap.ImportAsync(data.KeywordLocations);
+					imports.Add(this.KeywordMap.ImportAsync(data.KeywordLocations));
+
+				await Task.WhenAll(imports);
 			}
 		}
 
@@ -216,87 +227,99 @@ namespace Ox.SleepingGods.Data
 					return;
 				}
 
-				try
+				do
 				{
-					await this.syncLock.WaitAsync();
-
-					using HttpRequestMessage msg = new(HttpMethod.Get, new Uri(new Uri(this.DBInfo.SyncUrl), this.DBInfo.Uid));
-					msg.Headers.Accept.Add(new("application/json"));
-
-					// The browser will cache etags automatically with the cache
-					// So we need to bust the cache by setting a fake value in the request if one isn't known to avoid
-					// a previous etag being implicitly set
-					if (this.DBInfo.Etag != null)
-						msg.Headers.IfNoneMatch.Add(new(this.DBInfo.Etag));
-					else
-						msg.Headers.IfNoneMatch.Add(new("\"fudge\""));
-
-					using CancellationTokenSource cts = new();
-
-					cts.CancelAfter(10000);
-
-					using var response = await this.http.SendAsync(msg, HttpCompletionOption.ResponseHeadersRead, cts.Token);
-
-					switch (response.StatusCode)
+					try
 					{
-						case System.Net.HttpStatusCode.NotModified:
-							// Nothing to do, already in-sync
-							this.log.LogTrace("Server in-sync, no action taken.");
-							EtlManager.SyncStatus = "Synchronised.";
-							break;
-						case System.Net.HttpStatusCode.NotFound:
-							// Server copy missing, push it
-							await this.PushLatestAsync();
-							break;
-						case System.Net.HttpStatusCode.OK:
-							// Data!
-							if (!String.IsNullOrEmpty(response.Headers.ETag?.Tag) && Int64.TryParse(response.Headers.ETag?.Tag.Substring(1, response.Headers.ETag.Tag.Length - 2), out var serverTimestamp))
-							{
-								// ETag is a valid number
-								// Check that the server version is ahead of the client version
-								if (serverTimestamp == this.DBInfo.LastUpdate.ToUnixTimeSeconds())
-								{
-									// Whhhaat?
-									// Should have got a 304.
-								}
-								else if (serverTimestamp < this.DBInfo.LastUpdate.ToUnixTimeSeconds())
-								{
-									this.log.LogWarning("Server version is out-of-date");
-									// Trigger export to server
-									await this.PushLatestAsync();
-								}
-								else
-								{
-									// Import lastest to client db
-									await this.ImportAsync(response.Content.ReadAsStream());
-									// Overwrite the file's etag and update time to match the http request
-									// to avoid confusion with the sync proces
-									this.DBInfo.Etag = response.Headers.ETag?.Tag;
-									this.DBInfo.LastUpdate = DateTimeOffset.FromUnixTimeSeconds(serverTimestamp);
-									await this.DBInfo.SaveAsync();
-									this.log.LogInformation("Imported latest from sync server.");
-									EtlManager.SyncStatus = "Pulled latest changes.";
-									this.LastSync = DateTimeOffset.UtcNow;
-								}
-							}
+						await this.syncLock.WaitAsync();
 
-							break;
-						default:
-							EtlManager.SyncStatus = $"Unexpected response from sync server: {response.StatusCode}";
-							this.log.LogError("Unexpectted response {StatusCode}", response.StatusCode);
-							break;
+						using HttpRequestMessage msg = new(HttpMethod.Get, new Uri(new Uri(this.DBInfo.SyncUrl), this.DBInfo.Uid));
+						msg.Headers.Accept.Add(new("application/json"));
+
+						// The browser will cache etags automatically with the cache
+						// So we need to bust the cache by setting a fake value in the request if one isn't known to avoid
+						// a previous etag being implicitly set
+						if (this.DBInfo.Etag != null)
+							msg.Headers.IfNoneMatch.Add(new(this.DBInfo.Etag));
+						else
+							msg.Headers.IfNoneMatch.Add(new("\"fudge\""));
+
+						using CancellationTokenSource cts = new();
+
+						cts.CancelAfter(10000);
+
+						using var response = await this.http.SendAsync(msg, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+
+						switch (response.StatusCode)
+						{
+							case System.Net.HttpStatusCode.NotModified:
+								// Nothing to do, already in-sync
+								this.log.LogTrace("Server in-sync, no action taken.");
+								EtlManager.SyncStatus = "Synchronised.";
+								break;
+							case System.Net.HttpStatusCode.NotFound:
+								// Server copy missing, push it
+								await this.PushLatestAsync();
+								break;
+							case System.Net.HttpStatusCode.OK:
+								// Data!
+								if (!String.IsNullOrEmpty(response.Headers.ETag?.Tag) && Int64.TryParse(response.Headers.ETag?.Tag.Substring(1, response.Headers.ETag.Tag.Length - 2), out var serverTimestamp))
+								{
+									// ETag is a valid number
+									// Check that the server version is ahead of the client version
+									if (serverTimestamp == this.DBInfo.LastUpdate.ToUnixTimeSeconds())
+									{
+										// Whhhaat?
+										// Should have got a 304.
+									}
+									else if (serverTimestamp < this.DBInfo.LastUpdate.ToUnixTimeSeconds())
+									{
+										this.log.LogWarning("Server version is out-of-date");
+										// Trigger export to server
+										await this.PushLatestAsync();
+									}
+									else
+									{
+										// Import lastest to client db
+										await this.ImportAsync(response.Content.ReadAsStream());
+										// Overwrite the file's etag and update time to match the http request
+										// to avoid confusion with the sync proces
+										this.DBInfo.Etag = response.Headers.ETag?.Tag;
+										this.DBInfo.LastUpdate = DateTimeOffset.FromUnixTimeSeconds(serverTimestamp);
+										await this.DBInfo.SaveAsync();
+										this.log.LogInformation("Imported latest from sync server.");
+										EtlManager.SyncStatus = "Pulled latest changes.";
+										this.LastSync = DateTimeOffset.UtcNow;
+									}
+								}
+
+								break;
+							default:
+								EtlManager.SyncStatus = $"Unexpected response from sync server: {response.StatusCode}";
+								this.log.LogError("Unexpectted response {StatusCode}", response.StatusCode);
+								break;
+						}
+
+						syncSuccessful = true;
+						syncCount = 0;
+						await this.messages.ClearSyncError();
 					}
-				}
-				catch (Exception ex)
-				{
-					this.log.LogError(exception: ex, message: ex.Message);
-					EtlManager.SyncStatus = $"Sync pull failed: {ex.Message}";
-					await this.messages.AddMessage($"Unable to sync ({ex.Message})");
-				}
-				finally
-				{
-					this.syncLock.Release();
-				}
+					catch (Exception ex)
+					{
+						this.log.LogError(exception: ex, message: ex.Message);
+						EtlManager.SyncStatus = $"Sync pull failed: {ex.Message}";
+
+						if(++syncCount > 2)
+							await this.messages.DisplaySyncError($"Unable to sync ({ex.Message})");
+
+						// Throttle hammering
+						await Task.Delay(30000);
+					}
+					finally
+					{
+						this.syncLock.Release();
+					}
+				} while (!syncSuccessful);
 			}
 		}
 	}

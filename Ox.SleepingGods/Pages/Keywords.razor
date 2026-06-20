@@ -1,15 +1,18 @@
 ﻿@inject Data.KeywordRepository keywordRepo;
 @inject Data.KeywordLocationRepository keywordLocationRepository;
 @inject NavigationManager Navigator;
+@inject Data.KeywordStateManager stateManager;
 @page "/Keywords"
+@using Microsoft.AspNetCore.Components.Sections
 @using Ox.SleepingGods.Components
 
-<PageTitle>Quests</PageTitle>
+<PageTitle>Quests and Keywords - Sleeping Gods Companion</PageTitle>
+
+<SectionContent SectionName="page-title">Keywords</SectionContent>
 
 <h3>Keywords</h3>
 
 <div id="NewQuest">
-	<h4>Add Quest</h4>
 	<EditForm Model="@newKeyword" OnValidSubmit="@Submit" FormName="newquest" id="fnar">
 		<DataAnnotationsValidator />
 		<ValidationSummary />
@@ -21,11 +24,20 @@
 <fieldset>
 	<legend>Filter</legend>
 	<input type="text" @oninput="this.FilterAsync" class="keyword" placeholder="Search" />
+
+	
+	<select @bind="stateManager.QuestFilter" @bind:after="DisplayData">
+		<option value="">Types</option>
+		@foreach (var r in Enum.GetValues<Models.Data.KeywordType>())
+		{
+			<option>@r</option>
+		}
+	</select>
 </fieldset>
 
 @foreach(var r in this.keywords)
 {
-	<KeywordInfo Keyword="r" />
+	<KeywordInfo @key="r" Keyword="r" />
 }
 
 @code {
@@ -33,19 +45,15 @@
 	[SupplyParameterFromForm]
 	private Models.Data.Keyword? newKeyword { get; set; } = new();
 
-	private Dictionary<string,IList<Models.Data.KeywordLocation>> FoundLocations = [];
+	private List<Models.Data.Keyword> keywords = new(206);
 
-	private List<Models.Data.Keyword> keywords = new();
+	private SemaphoreSlim semaphore = new(1);
 
 	protected override async Task OnInitializedAsync()
 	{
 		await base.OnInitializedAsync();
 
-		this.keywords = await this.keywordRepo.GetAll();
-		foreach(var kw in this.keywords)
-		{
-			this.FoundLocations[kw.Id!] = await this.keywordLocationRepository.GetByKeyword(kw.Id!, Models.Data.KeywordAction.Found);
-		}
+		await DisplayData();
 	}
 
 	protected async Task FilterAsync(ChangeEventArgs eventArgs)
@@ -65,5 +73,30 @@
 			this.keywords.Add(this.newKeyword);
 		}
 		this.newKeyword = new();
+	}
+
+	private async Task DisplayData()
+	{
+		await this.semaphore.WaitAsync();
+		try
+		{
+			this.keywords.Clear();
+			await foreach (var kw in this.keywordRepo.GetAllAsync())
+			{
+				if (!stateManager.QuestFilter.HasValue || stateManager.QuestFilter == kw.KeywordType)
+					this.keywords.Add(kw);
+
+				StateHasChanged();
+			}
+		}
+		catch(Exception ex)
+		{
+			throw ex;
+		}
+		finally
+		{
+
+			this.semaphore.Release();
+		}
 	}
 }

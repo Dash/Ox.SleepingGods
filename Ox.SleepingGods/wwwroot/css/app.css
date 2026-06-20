@@ -9,15 +9,15 @@ html, body, input, textarea, button {
     font-size: 1.2em;
 }
 
-nav {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    padding-bottom: 3px;
-    border-bottom: 3px solid antiquewhite;
-    box-shadow: rgb(0, 0, 0, 0.42) 0px 0px 5px;
+.teal {
+    color: var(--teal);
 }
+
+h3 {
+    margin-top: 0;
+    margin-bottom: 5px;
+}
+
 
 nav .navbackground {
     position: absolute;
@@ -39,7 +39,7 @@ body {
 }
 
 div#messages {
-    margin-top: 4em;
+    margin-top: 5em;
     padding: 3px;
 }
 
@@ -93,7 +93,6 @@ a, .btn-link {
 }
 
 .content {
-    padding-top: 1.1rem;
 }
 
 .valid.modified:not([type=checkbox]) {
@@ -207,6 +206,35 @@ code {
 .resourcelist img.resource,
 .resources label img.resource {
     background: radial-gradient(circle at top, #92564A, #210A0F);
+}
+
+.fav label {
+    position: relative;
+    display: inline-block;
+}
+
+.fav label input {
+    position: absolute;
+    width: 0;
+    height: 0;
+}
+
+.fav label input:before {
+    height: 1em;
+    width: 1em;
+    opacity: 1;
+    color: var(--teal);
+    position: absolute;
+    font-family: 'FluentSystemIcons-Regular';
+    top: -0.9em;
+}
+
+.fav input[type=checkbox]:checked:before {
+    content: "\ebaa";
+}
+
+.fav input[type=checkbox]:not(:checked):before {
+    content: "\f71a";
 }
 
 a.back {

@@ -30,8 +30,8 @@
 		}
 		public int Page { get; init; }
 
-		public List<ResourceType> Resources { get; init; } = [];
-		public List<Skill> Skills { get; init; } = [];
+		public HashSet<ResourceType> Resources { get; init; } = [];
+		public HashSet<Skill> Skills { get; init; } = [];
 		public DangerState Danger { get; set; } = DangerState.Unknown;
 		public int? CombatLevel { get; set; } = null;
 		public LocationState State { get; set; } = LocationState.Unvisited;

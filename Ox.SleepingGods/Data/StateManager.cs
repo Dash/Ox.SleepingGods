@@ -13,4 +13,9 @@
 		public Models.Data.ResourceType? ResourceFilter { get; set; }
 	}
 
+	public sealed class KeywordStateManager : StateManager
+	{
+		public Models.Data.KeywordType? QuestFilter { get; set; }
+	}
+
 }

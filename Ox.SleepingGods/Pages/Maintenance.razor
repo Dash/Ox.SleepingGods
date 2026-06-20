@@ -1,9 +1,12 @@
 ﻿@page "/Maintenance";
+@using Microsoft.AspNetCore.Components.Sections
 @inject IJSRuntime JS;
 @inject Data.EtlManager SynManager;
 @inject Models.Data.Management DbInfo;
 
 <PageTitle>Database maintenance - Sleeping Gods Companion</PageTitle>
+
+<SectionContent SectionName="page-title">Database Maintenance</SectionContent>
 
 <script>
 	window.downloadFileFromStream = async (fileName, contentStreamReference) => {
@@ -39,7 +42,8 @@
 
 	<input type="url" class="fullwidth" placeholder="Sync endpoint URL" @bind="DbInfo.SyncUrl" @bind:after="this.UpdateSync" />
 
-	<p>Last sync @this.SynManager.LastSync<br />
+	<p>Last sync @this.SynManager.LastSync?.LocalDateTime.ToString("G")<br />
+		Db timestamp: @this.DbInfo.LastUpdate.LocalDateTime.ToString("G")<br />
 		Database id: @this.DbInfo.Uid<br />
 		Status: @Data.EtlManager.SyncStatus</p>
 </fieldset>

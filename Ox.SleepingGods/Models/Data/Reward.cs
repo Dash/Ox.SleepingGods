@@ -4,6 +4,7 @@
 		ResourceType Type,
 		int Quantity)
 	{
+		public override int GetHashCode() => (int)this.Type;
 	}
 
 	[Flags]

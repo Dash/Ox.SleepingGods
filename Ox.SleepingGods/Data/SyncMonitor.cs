@@ -34,33 +34,36 @@
 			this.log.LogDebug("Monitoring");
 			await foreach (var item in this.channel.Reader.ReadAllAsync(this.cancellationSource.Token))
 			{
-				this.log.LogDebug("Records to sync");
-				await (SyncMonitor.OnProcessingStart?.Invoke() ?? Task.CompletedTask);
-
-				/* The idea of waiting 10 seconds is because people tend to change multiple things in small windows
-				 * and we don't want to hammer the sync endpoint.  Waiting a period of time gives the user a chance
-				 * to complete all their activity before syncing.
-				 * The sync logic should decide whether any sync is necessary/
-				 */
-				try
+				if (this.etl.SyncEnabled)
 				{
-					await Task.Delay(10000, this.cancellationSource.Token);
+					this.log.LogDebug("Records to sync");
+					await (SyncMonitor.OnProcessingStart?.Invoke() ?? Task.CompletedTask);
+
+					/* The idea of waiting 10 seconds is because people tend to change multiple things in small windows
+					 * and we don't want to hammer the sync endpoint.  Waiting a period of time gives the user a chance
+					 * to complete all their activity before syncing.
+					 * The sync logic should decide whether any sync is necessary/
+					 */
+					try
+					{
+						await Task.Delay(10000, this.cancellationSource.Token);
+					}
+					catch (TaskCanceledException)
+					{ } // Push this waiting instance out asap
+
+					// If after waiting there is other stuff in the queue
+					// we'll just go round again as we want to avoid syncing while more
+					// changes are coming through
+					// Obviously, only if we haven't requested cancellation
+					if (!this.cancellationSource.Token.IsCancellationRequested
+						&& this.channel.Reader.Count > 0)
+						continue;
+
+					// Export 
+					await this.etl.SyncAsync();
+
+					await (SyncMonitor.OnProcessingEnd?.Invoke() ?? Task.CompletedTask);
 				}
-				catch (TaskCanceledException)
-				{ } // Push this waiting instance out asap
-
-				// If after waiting there is other stuff in the queue
-				// we'll just go round again as we want to avoid syncing while more
-				// changes are coming through
-				// Obviously, only if we haven't requested cancellation
-				if (!this.cancellationSource.Token.IsCancellationRequested
-					&& this.channel.Reader.Count > 0)
-					continue;
-
-				// Export 
-				await this.etl.SyncAsync();
-
-				await (SyncMonitor.OnProcessingEnd?.Invoke() ?? Task.CompletedTask);
 			}
 		}
 

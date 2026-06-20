@@ -25,8 +25,8 @@ namespace Ox.SleepingGods.Models.Data
 		public int DbVersion
 		{
 			get;
-			private set;
-		} = Ox.SleepingGods.Data.Schema.IndexedDbSchema.DB_VERSION;
+			set;
+		}
 
 		/// <summary>
 		/// Unique indicator for this database
@@ -102,6 +102,10 @@ namespace Ox.SleepingGods.Models.Data
 		/// <returns></returns>
 		public async Task SaveAsync()
 		{
+			// Indicate the current version of the db.
+			if(this.DbVersion !=  Ox.SleepingGods.Data.Schema.IndexedDbSchema.DB_VERSION)
+				this.DbVersion = Ox.SleepingGods.Data.Schema.IndexedDbSchema.DB_VERSION;
+
 			this.record ??= new StoreRecord<Management>()
 				{
 					Storename = nameof(Management),
