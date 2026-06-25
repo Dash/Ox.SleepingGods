@@ -9,9 +9,7 @@ This code repository contains the source code for the companion app.  The app is
 yourself, or make changes to how the app works.
 
 # Features
-The app currently only supports the base game, as I do not have the expansion to be able to add in keyword information.
-If you would like support for the expansion, please add the keywords to the keyword file in this repository, or list
-them as an issue against this project for somebody else to add.
+The app supports both the base game and the Tides of Ruin expansion.
 
 * Mark locations for:
   * Encountered combat level
@@ -60,6 +58,19 @@ same time.  But this does mean, only one person/device should be altering the db
 
 The project does not provide an official sync-server for use, but there is a C# and PHP sample implementation in this
 repo which you can self-host on your home-NAS or some other secure location.
+
+# Building and hosting
+You need either Visual Studio (or equivalent IDE) or the .NET SDK.  Publish the Ox.SleepingGods project to a file
+location of your choice.  This will build a self-contained WSAM website that can be hosted on any generic web server
+(.net etc does not need to be installed).  Configure your web-server as you would normally to serve the file
+wwwroot/index.html as the default file.
+
+Review [WASM hosting documentation](https://learn.microsoft.com/en-us/aspnet/core/blazor/host-and-deploy/webassembly/?view=aspnetcore-10.0&tabs=windows)
+for specifics for configuring your web server.
+
+## Sync server
+See [API project documentation](Ox.SleepingGods.API/README.md) for .NET build.  PHP version drop the index.php file
+into a relevant web directory.
 
 # Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md).
